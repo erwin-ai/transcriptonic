@@ -460,6 +460,11 @@ function updateMeetingTitle() {
 
 checkExtensionStatus()
 
+setInterval(() => {
+  if (transcript.length > 0) {
+    overWriteChromeStorage(["transcript"], false);
+  }
+}, 5000);
 
 // 2024-11-20 11:00:00
 {/* 
