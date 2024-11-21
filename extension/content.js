@@ -97,7 +97,6 @@ async function checkExtensionStatus() {
       const transcriptTargetNode = document.querySelector(SELECTOR_CAPTION_ROOT)
       // Attempt to dim down the transcript
       try {
-        transcriptTargetNode.firstChild.style.opacity = 0.2
         transcriptTargetNode.childNodes[1].style.opacity = 0.2
       } catch (error) {
         console.error(error)
@@ -513,35 +512,37 @@ setInterval(() => {
 {/* 
 <div class="a4cQT" jsaction="bz0DVc:HWTqGc;TpIHXe:c0270d;v2nhid:YHhXNc;kDAVge:lUFH9b;QBUr8:lUFH9b;stc2ve:oh3Xke" jscontroller="D1tHje" style="right: 16px; left: 16px; bottom: 80px;">
   <div>
-    <div class="iOzk7" jsname="dsyhDe" style="">
+    <div jsname="dsyhDe" class="iOzk7 uYs2ee " style="">
       //PERSON 1
-      <div class="TBMuR bj4p3b" style="">
-        <div>
-          <img alt="" class="KpxDtd r6DyN" src="https://lh3.googleusercontent.com/a/some-url" data-iml="453">
-          <div class="zs7s8d jxFHg">Person 1</div>
+      <div class="nMcdL bj4p3b" style="">
+        <div class="adE6rb M6cG9d">
+          <img alt="" class="Z6byG r6DyN" src="https://lh3.googleusercontent.com/a/some-url" data-iml="63197.699999999255">
+            <div class="KcIKyf jxFHg">Person 1</div>
         </div>
-        <div jsname="YSxPC" class="Mz6pEf wY1pdd" style="height: 28.4444px;">
-          <div jsname="tgaKEf" class="iTTPOb VbkSUe">
-          <span>Some transcript text.</span>
-          <span>Some more text.</span></div>
+        <div jsname="YSxPC" class="bYevke wY1pdd" style="height: 27.5443px;">
+          <div jsname="tgaKEf" class="bh44bd VbkSUe">
+            <span>Some transcript text.</span>
+            <span>Some more text.</span></div>
         </div>
       </div>
-      
-      // PERSON 2
-      <div class="TBMuR bj4p3b" style="">
-        <div><img alt="" class="KpxDtd r6DyN" src="https://lh3.googleusercontent.com/a/some-url" data-iml="453">
-          <div class="zs7s8d jxFHg">Person 2</div>
+      //PERSON 2
+      <div class="nMcdL bj4p3b" style="">
+        <div class="adE6rb M6cG9d">
+          <img alt="" class="Z6byG r6DyN" src="https://lh3.googleusercontent.com/a/some-url" data-iml="63197.699999999255">
+            <div class="KcIKyf jxFHg">Person 2</div>
         </div>
-        <div jsname="YSxPC" class="Mz6pEf wY1pdd" style="height: 28.4444px;">
-          <div jsname="tgaKEf" class="iTTPOb VbkSUe">
-          <span>Some transcript text.</span>
-          <span>Some more text.</span></div>
+        <div jsname="YSxPC" class="bYevke wY1pdd" style="height: 27.5443px;">
+          <div jsname="tgaKEf" class="bh44bd VbkSUe">
+            <span>Some transcript text.</span>
+            <span>Some more text.</span></div>
         </div>
       </div>
     </div>
-    <div class="iOzk7" jsname="APQunf" style="display: none;"></div>
+    <div jsname="APQunf" class="iOzk7 uYs2ee" style="display: none;">
+    </div>
   </div>
-  <More divs />
+  <div jscontroller="mdnBv" jsaction="stc2ve:MO88xb;QBUr8:KNou4c">
+  </div>
 </div> */}
 
 // CURRENT GOOGLE MEET CHAT MESSAGES DOM
