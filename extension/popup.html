@@ -50,10 +50,20 @@
       width: 18px;
     }
 
+    .meeting-info {
+      width: 200px;
+    }
+
+    textarea {
+      accent-color: #2A9ACA;
+      width: 100%;
+      height: 200px;
+    }
+
     label {
       margin: 0px;
       margin-bottom: 0.25rem;
-      font-size: 1.25rem;
+      font-size: 1.0rem;
     }
 
     a {
@@ -62,10 +72,37 @@
       font-size: 1rem;
       text-underline-offset: 4px;
     }
+
+    .toast {
+      visibility: hidden; /* 기본적으로 숨김 */
+      min-width: 250px;
+      margin-left: -125px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 5px;
+      padding: 16px;
+      position: fixed;
+      z-index: 1000;
+      left: 50%;
+      bottom: 30px;
+      font-size: 17px;
+      box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.5);
+      opacity: 0; /* 투명도 0으로 설정 */
+      transition: opacity 0.5s, bottom 0.5s; /* 애니메이션 효과 */
+    }
+
+    /* Toast가 보여질 때 */
+    .toast.show {
+      visibility: visible;
+      opacity: 1; /* 투명도 1로 설정 */
+      bottom: 50px; /* 위치 조정 */
+    }
   </style>
 </head>
 
 <body>
+  <div id="toast" class="toast">This is a toast message!</div>
   <div>
     <div style="margin-bottom: 2rem;">
       <div style="display: flex; gap: 1rem; align-items: center;">
@@ -79,36 +116,42 @@
       </div>
     </div>
 
-    <hr style="margin-bottom: 2rem;" />
+    <hr style="margin-bottom: 1rem;" />
 
     <div style="display: flex; gap: 0.25rem;">
       <input type="radio" name="mode" id="auto-mode" />
       <label><b>Auto</b> (records transcripts for all meetings)</label>
     </div>
-    <div style="margin-bottom: 2rem; display: flex; gap: 0.25rem;">
+    <div style="margin-bottom: 1rem; display: flex; gap: 0.25rem;">
       <input type="radio" name="mode" id="manual-mode" />
       <label><b>Manual</b> (switch on transcript as needed) </label>
     </div>
-    <div class="get-started">
-      <h2>How to use TranscripTonic?</h2>
-      <p>In both modes, transcript will be automatically downloaded as a text file at the end of each meeting. <b>Avoid
-          closing the meeting tab.</b></p>
-      <ul>
-        <li><b>Auto mode:</b> Automatically records transcripts for all meetings</li>
-        <li><b>Manual mode:</b> Switch on TranscripTonic by clicking on captions icon in Google Meet (CC icon)</li>
-      </ul>
-    </div>
     <div>
-      <div style="margin-bottom: 2.75rem">
+      <div style="margin-bottom: 1rem">
         <a href="" id="last-meeting-transcript">Download last meeting transcript</a>
         &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; &nbsp;
         <a href="https://github.com/vivek-nexus/transcriptonic#readme" target="_blank">Get more help</a>
         &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; &nbsp;
-        <a href="https://github.com/vivek-nexus/transcriptonic/issues" target="_blank">Report a bug</a>
+        <a href="" id="last-note-sync">Sync last meeting transcript</a>
       </div>
-      <p style="font-size: small;">Another
-        project by <span><a href="https://vivek-nexus.github.io" target="_blank"
-            style="font-size: small; margin: 0px;">Vivek</a></span>. Background by SVGBackgrounds.com.</p>
+    </div>
+    <div class="meeting-note">
+      <div>
+        <label style="font-size: small;"><b>Note ID&nbsp; &nbsp;</b></label>
+        <input type="text" name="note-id" id="note-id" class="meeting-info"/>
+      </div>
+      <div>
+        <label style="font-size: small;"><b>Note Title&nbsp; &nbsp;</b></label>
+        <input type="text" name="note-title" id="note-title" class="meeting-info"/>
+      </div>
+      <div>
+        <label style="font-size: small;"><b>Note Start At&nbsp; &nbsp;</b></label>
+        <input type="text" name="note-start-at" id="note-start-at" class="meeting-info"/>
+      </div>
+      <div>
+        <textarea name="note-transcript" id="note-transcript">
+        </textarea>
+      </div>
     </div>
   </div>
 

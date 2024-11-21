@@ -10,10 +10,10 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         })
     }
     if (message.type == "download") {
-        // Invalidate tab id since transcript is downloaded, prevents double downloading of transcript from tab closed event listener
-        chrome.storage.local.set({ meetingTabId: null }, function () {
-            console.log("Meeting tab id cleared")
-        })
+        // // Invalidate tab id since transcript is downloaded, prevents double downloading of transcript from tab closed event listener
+        // chrome.storage.local.set({ meetingTabId: null }, function () {
+        //     console.log("Meeting tab id cleared")
+        // })
         downloadTranscript()
     }
     return true
@@ -69,7 +69,6 @@ function downloadTranscript() {
 
             // Add branding
             lines.push("---------------")
-            lines.push("Transcript saved using TranscripTonic Chrome extension (https://chromewebstore.google.com/detail/ciepnfnceimjehngolkijpnbappkkiag)")
             lines.push("---------------")
 
 

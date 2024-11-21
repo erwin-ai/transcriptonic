@@ -1,4 +1,8 @@
 //*********** GLOBAL VARIABLES **********//
+const SELECTOR_USER_NAME = ".awLEm"
+const SELECTOR_CAPTION_ROOT = '.a4cQT'
+const SELECTOR_CAPTION_ITEMS = '.iOzk7'
+
 const timeFormat = {
   year: 'numeric',
   month: '2-digit',
@@ -7,11 +11,23 @@ const timeFormat = {
   minute: '2-digit',
   hour12: true
 }
+
+const timeFormatShort = {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true
+}
+
+const extensionStatusJSON = { 
+  "status": 200, 
+  "message": "<strong>TranscripTonic is running</strong> <br /> Do not turn off captions" 
+}
+
 const extensionStatusJSON_bug = {
   "status": 400,
-  "message": "<strong>TranscripTonic encountered a new error</strong> <br /> Please report it <a href='https://github.com/vivek-nexus/transcriptonic/issues' target='_blank'>here</a>."
+  "message": "<strong>TranscripTonic encountered a new error</strong>"
 }
-const reportErrorMessage = "There is a bug in TranscripTonic. Please report it at https://github.com/vivek-nexus/transcriptonic/issues"
+const reportErrorMessage = "There is a bug in TranscripTonic."
 const mutationConfig = { childList: true, attributes: true, subtree: true }
 
 // Name of the person attending the meeting
@@ -41,104 +57,23 @@ let hasMeetingStarted = false
 // Capture meeting end to suppress any errors
 let hasMeetingEnded = false
 
-let extensionStatusJSON
+console.log("Content script loaded")
 
-
-checkExtensionStatus().then(() => {
-  // Read the status JSON
-  chrome.storage.local.get(["extensionStatusJSON"], function (result) {
-    extensionStatusJSON = result.extensionStatusJSON;
-    console.log("Extension status " + extensionStatusJSON.status);
-
-    // Enable extension functions only if status is 200
-    if (extensionStatusJSON.status == 200) {
-      // NON CRITICAL DOM DEPENDENCY. Attempt to get username before meeting starts. Abort interval if valid username is found or if meeting starts and default to "You".
-      checkElement(".awLEm").then(() => {
-        // Poll the element until the textContent loads from network or until meeting starts
-        const captureUserNameInterval = setInterval(() => {
-          userName = document.querySelector(".awLEm").textContent
-          if (userName || hasMeetingStarted) {
-            clearInterval(captureUserNameInterval)
-            // Prevent overwriting default "You" where element is found, but valid userName is not available
-            if (userName != "")
-              overWriteChromeStorage(["userName"], false)
-          }
-        }, 100)
-      })
-
-      // 1. Meet UI prior to July/Aug 2024
-      meetingRoutines(1)
-
-      // 2. Meet UI post July/Aug 2024
-      meetingRoutines(2)
-    }
-    else {
-      // Show downtime message as extension status is 400
-      showNotification(extensionStatusJSON)
-    }
-  })
-})
-
-// Fetches extension status from GitHub and saves to chrome storage. Defaults to 200, if remote server is unavailable.
 async function checkExtensionStatus() {
-  // Set default value as 200
-  chrome.storage.local.set({
-    extensionStatusJSON: { status: 200, message: "<strong>TranscripTonic is running</strong> <br /> Do not turn off captions" },
-  });
+  console.log("Checking extension status")
 
-  // https://stackoverflow.com/a/42518434
-  await fetch(
-    "https://ejnana.github.io/transcripto-status/status-prod.json",
-    { cache: "no-store" }
-  )
-    .then((response) => response.json())
-    .then((result) => {
-      // Write status to chrome local storage
-      chrome.storage.local.set({ extensionStatusJSON: result }, function () {
-        console.log("Extension status fetched and saved")
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-}
-
-
-function meetingRoutines(uiType) {
-  const meetingEndIconData = {
-    selector: "",
-    text: ""
-  }
-  const captionsIconData = {
-    selector: "",
-    text: ""
-  }
-  // Different selector data for different UI versions
-  switch (uiType) {
-    case 1:
-      meetingEndIconData.selector = ".google-material-icons"
-      meetingEndIconData.text = "call_end"
-      captionsIconData.selector = ".material-icons-extended"
-      captionsIconData.text = "closed_caption_off"
-      break;
-    case 2:
-      meetingEndIconData.selector = ".google-symbols"
-      meetingEndIconData.text = "call_end"
-      captionsIconData.selector = ".google-symbols"
-      captionsIconData.text = "closed_caption_off"
-    default:
-      break;
-  }
+  // NON CRITICAL DOM DEPENDENCY. Attempt to get username before meeting starts. 
+  // Abort interval if valid username is found or if meeting starts and default to "You".
+  captureUserName(SELECTOR_USER_NAME)
 
   // CRITICAL DOM DEPENDENCY. Wait until the meeting end icon appears, used to detect meeting start
-  checkElement(meetingEndIconData.selector, meetingEndIconData.text).then(() => {
-    console.log("Meeting started")
+  checkElement(".google-symbols", "call_end").then(() => {
+    console.log("Wait until the meeting end icon appears, used to detect meeting start")
+
     chrome.runtime.sendMessage({ type: "new_meeting_started" }, function (response) {
       console.log(response);
     });
     hasMeetingStarted = true
-
-
 
     try {
       //*********** MEETING START ROUTINES **********//
@@ -147,7 +82,7 @@ function meetingRoutines(uiType) {
 
       // **** TRANSCRIPT ROUTINES **** //
       // CRITICAL DOM DEPENDENCY
-      const captionsButton = contains(captionsIconData.selector, captionsIconData.text)[0]
+      const captionsButton = contains(".google-symbols", "closed_caption_off")[0]
 
 
       // Click captions icon for non manual operation modes. Async operation.
@@ -159,10 +94,11 @@ function meetingRoutines(uiType) {
       })
 
       // CRITICAL DOM DEPENDENCY. Grab the transcript element. This element is present, irrespective of captions ON/OFF, so this executes independent of operation mode.
-      const transcriptTargetNode = document.querySelector('.a4cQT')
+      const transcriptTargetNode = document.querySelector(SELECTOR_CAPTION_ROOT)
       // Attempt to dim down the transcript
       try {
         transcriptTargetNode.firstChild.style.opacity = 0.2
+        transcriptTargetNode.childNodes[1].style.opacity = 0.2
       } catch (error) {
         console.error(error)
       }
@@ -173,32 +109,32 @@ function meetingRoutines(uiType) {
       // Start observing the transcript element and chat messages element for configured mutations
       transcriptObserver.observe(transcriptTargetNode, mutationConfig)
 
-      // **** CHAT MESSAGES ROUTINES **** //
-      const chatMessagesButton = contains(".google-symbols", "chat")[0]
-      // Force open chat messages to make the required DOM to appear. Otherwise, the required chatMessages DOM element is not available.
-      chatMessagesButton.click()
-      let chatMessagesObserver
-      // Allow DOM to be updated and then register chatMessage mutation observer
-      setTimeout(() => {
-        chatMessagesButton.click()
-        // CRITICAL DOM DEPENDENCY. Grab the chat messages element. This element is present, irrespective of chat ON/OFF, once it appears for this first time.
-        try {
-          const chatMessagesTargetNode = document.querySelectorAll('div[aria-live="polite"]')[0]
+      // // **** CHAT MESSAGES ROUTINES **** //
+      // const chatMessagesButton = contains(".google-symbols", "chat")[0]
+      // // Force open chat messages to make the required DOM to appear. Otherwise, the required chatMessages DOM element is not available.
+      // chatMessagesButton.click()
+      // let chatMessagesObserver
+      // // Allow DOM to be updated and then register chatMessage mutation observer
+      // setTimeout(() => {
+      //   chatMessagesButton.click()
+      //   // CRITICAL DOM DEPENDENCY. Grab the chat messages element. This element is present, irrespective of chat ON/OFF, once it appears for this first time.
+      //   try {
+      //     const chatMessagesTargetNode = document.querySelectorAll('div[aria-live="polite"]')[0]
 
-          // Create chat messages observer instance linked to the callback function. Registered irrespective of operation mode.
-          chatMessagesObserver = new MutationObserver(chatMessagesRecorder)
+      //     // Create chat messages observer instance linked to the callback function. Registered irrespective of operation mode.
+      //     chatMessagesObserver = new MutationObserver(chatMessagesRecorder)
 
-          chatMessagesObserver.observe(chatMessagesTargetNode, mutationConfig)
-        } catch (error) {
-          console.error(error)
-          showNotification(extensionStatusJSON_bug)
-        }
-      }, 500)
+      //     chatMessagesObserver.observe(chatMessagesTargetNode, mutationConfig)
+      //   } catch (error) {
+      //     console.error(error)
+      //     showNotification(extensionStatusJSON_bug)
+      //   }
+      // }, 500)
 
       // Show confirmation message from extensionStatusJSON, once observation has started, based on operation mode
       chrome.storage.sync.get(["operationMode"], function (result) {
         if (result.operationMode == "manual")
-          showNotification({ status: 400, message: "<strong>TranscripTonic is not running</strong> <br /> Turn on captions using the CC icon, if needed" })
+          showNotification({ status: 400, message: "<strong>Meet Senographer is not running</strong> <br /> Turn on captions using the CC icon, if needed" })
         else
           showNotification(extensionStatusJSON)
       })
@@ -206,11 +142,13 @@ function meetingRoutines(uiType) {
 
       //*********** MEETING END ROUTINES **********//
       // CRITICAL DOM DEPENDENCY. Event listener to capture meeting end button click by user
-      contains(meetingEndIconData.selector, meetingEndIconData.text)[0].parentElement.parentElement.addEventListener("click", () => {
+      contains(".google-symbols", "call_end")[0].parentElement.addEventListener("click", () => {
         // To suppress further errors
         hasMeetingEnded = true
         transcriptObserver.disconnect()
         chatMessagesObserver.disconnect()
+
+        console.log("Meeting ended. Disconnecting observers")
 
         // Push any data in the buffer variables to the transcript array, but avoid pushing blank ones. Needed to handle one or more speaking when meeting ends.
         if ((personNameBuffer != "") && (transcriptTextBuffer != ""))
@@ -223,8 +161,29 @@ function meetingRoutines(uiType) {
       showNotification(extensionStatusJSON_bug)
     }
   })
-}
 
+  function captureUserName(selecttorUserName) {
+    console.log("Attempting to capture user name at " + selecttorUserName)
+
+    checkElement(selecttorUserName).then(() => {
+      // Poll the element until the textContent loads from network or until meeting starts
+      console.log("Poll the element until the textContent loads from network or until meeting starts")
+
+      const captureUserNameInterval = setInterval(() => {
+        userName = document.querySelector(selecttorUserName).textContent
+
+        console.log("User name: " + userName)
+
+        if (userName || hasMeetingStarted) {
+          clearInterval(captureUserNameInterval)
+          // Prevent overwriting default "You" where element is found, but valid userName is not available
+          if (userName != "")
+            overWriteChromeStorage(["userName"], false)
+        }
+      }, 100)
+    })
+  }
+}
 
 // Returns all elements of the specified selector type and specified textContent. Return array contains the actual element as well as all the upper parents. 
 function contains(selector, text) {
@@ -261,7 +220,7 @@ function showNotification(extensionStatusJSON) {
 
   logo.setAttribute(
     "src",
-    "https://ejnana.github.io/transcripto-status/icon.png"
+    "https://yt3.googleusercontent.com/kvOvzIXphJg6Eye3CUDAX1IO-68qoIa0nFwy3bhTI3m-mANujWKhMRBq6Ys6y02QVLpOUoztcA=s900-c-k-c0x00ffffff-no-rj"
   );
   logo.setAttribute("height", "32px");
   logo.setAttribute("width", "32px");
@@ -273,7 +232,7 @@ function showNotification(extensionStatusJSON) {
   }, 5000);
 
   if (extensionStatusJSON.status == 200) {
-    obj.style.cssText = `color: #2A9ACA; ${commonCSS}`;
+    obj.style.cssText = `color: black; ${commonCSS}`;
     text.innerHTML = extensionStatusJSON.message;
   }
   else {
@@ -288,7 +247,8 @@ function showNotification(extensionStatusJSON) {
 }
 
 // CSS for notification
-const commonCSS = `background: rgb(255 255 255 / 10%); 
+const commonCSS = `
+    background-color: white;
     backdrop-filter: blur(16px); 
     position: fixed;
     top: 5%; 
@@ -296,7 +256,8 @@ const commonCSS = `background: rgb(255 255 255 / 10%);
     right: 0; 
     margin-left: auto; 
     margin-right: auto;
-    max-width: 780px;  
+    max-width: 400px;  // Reduced from 780px
+    width: 90%;  // Added to ensure it's not too wide on larger screens
     z-index: 1000; 
     padding: 0rem 1rem;
     border-radius: 8px; 
@@ -304,20 +265,23 @@ const commonCSS = `background: rgb(255 255 255 / 10%);
     justify-content: center; 
     align-items: center; 
     gap: 16px;  
-    font-size: 1rem; 
+    font-size: 0.9rem; 
     line-height: 1.5; 
     font-family: 'Google Sans',Roboto,Arial,sans-serif; 
     box-shadow: rgba(0, 0, 0, 0.16) 0px 10px 36px 0px, rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;`;
+
 
 // Callback function to execute when transcription mutations are observed. 
 function transcriber(mutationsList, observer) {
   // Delay for 1000ms to allow for text corrections by Meet.
   mutationsList.forEach(mutation => {
     try {
-      // CRITICAL DOM DEPENDENCY. Get all people in the transcript
-      const people = document.querySelector('.a4cQT').firstChild.firstChild.childNodes
       // Begin parsing transcript
-      if (document.querySelector('.a4cQT')?.firstChild?.firstChild?.childNodes.length > 0) {
+      if (document.querySelector(SELECTOR_CAPTION_ROOT)?.querySelector(SELECTOR_CAPTION_ITEMS)?.childNodes.length > 0) {
+        // CRITICAL DOM DEPENDENCY. Get all people in the transcript
+        // SELECTOR_CAPTION_ITEMS
+        const people = document.querySelector(SELECTOR_CAPTION_ROOT).querySelector(SELECTOR_CAPTION_ITEMS).childNodes
+
         // Get the last person
         const person = people[people.length - 1]
         // CRITICAL DOM DEPENDENCY
@@ -325,8 +289,11 @@ function transcriber(mutationsList, observer) {
         // CRITICAL DOM DEPENDENCY
         const currentTranscriptText = person.childNodes[1].lastChild.textContent
 
+        console.log(" >>> " + currentPersonName + " : " + currentTranscriptText)
         // Starting fresh in a meeting or resume from no active transcript
         if (beforeTranscriptText == "") {
+          console.log("Starting fresh in a meeting or resume from no active transcript")
+
           personNameBuffer = currentPersonName
           timeStampBuffer = new Date().toLocaleString("default", timeFormat).toUpperCase()
           beforeTranscriptText = currentTranscriptText
@@ -338,11 +305,12 @@ function transcriber(mutationsList, observer) {
           if (personNameBuffer != currentPersonName) {
             // Push previous person's transcript as a block
             pushBufferToTranscript()
+            console.log("Writing transcript block")
             overWriteChromeStorage(["transcript"], false)
             // Update buffers for next mutation and store transcript block timeStamp
             beforeTranscriptText = currentTranscriptText
             personNameBuffer = currentPersonName
-            timeStampBuffer = new Date().toLocaleString("default", timeFormat).toUpperCase()
+            timeStampBuffer = new Date().toLocaleString("default", timeFormatShort).toUpperCase()
             transcriptTextBuffer = currentTranscriptText
           }
           // Same person speaking more
@@ -350,9 +318,11 @@ function transcriber(mutationsList, observer) {
             transcriptTextBuffer = currentTranscriptText
             // Update buffers for next mutation
             beforeTranscriptText = currentTranscriptText
-            // If a person is speaking for a long time, Google Meet does not keep the entire text in the spans. Starting parts are automatically removed in an unpredictable way as the length increases and TranscripTonic will miss them. So we force remove a lengthy transcript node in a controlled way. Google Meet will add a fresh person node when we remove it and continue transcription. TranscripTonic picks it up as a new person and nothing is missed.
-            if (currentTranscriptText.length > 250)
+            // If a person is speaking for a long time, Google Meet does not keep the entire text in the spans. Starting parts are automatically removed in an unpredictable way as the length increases and extension will miss them. So we force remove a lengthy transcript node in a controlled way. Google Meet will add a fresh person node when we remove it and continue transcription. picks it up as a new person and nothing is missed.
+            if (currentTranscriptText.length > 250){
+              console.log("Removing lengthy transcript node")
               person.remove()
+            }
           }
         }
       }
@@ -363,6 +333,7 @@ function transcriber(mutationsList, observer) {
         // Push data in the buffer variables to the transcript array, but avoid pushing blank ones.
         if ((personNameBuffer != "") && (transcriptTextBuffer != "")) {
           pushBufferToTranscript()
+          console.log("Writing transcript block from no active transcript")
           overWriteChromeStorage(["transcript"], false)
         }
         // Update buffers for the next person in the next mutation
@@ -371,7 +342,7 @@ function transcriber(mutationsList, observer) {
         personNameBuffer = ""
         transcriptTextBuffer = ""
       }
-      console.log(transcriptTextBuffer)
+      // console.log(transcriptTextBuffer)
       // console.log(transcript)
     } catch (error) {
       console.error(error)
@@ -396,8 +367,8 @@ function chatMessagesRecorder(mutationsList, observer) {
         const chatMessageElement = chatMessagesElement.lastChild
         // CRITICAL DOM DEPENDENCY.
         const personName = chatMessageElement.firstChild.firstChild.textContent
-        const timeStamp = new Date().toLocaleString("default", timeFormat).toUpperCase()
-        // CRITICAL DOM DEPENDENCY. Some mutations will have some noisy text at the end, which is handled in pushUniqueChatBlock function.
+        const timeStamp = new Date().toLocaleString("default", timeFormatShort).toUpperCase()
+        // CRITICAL DOM DEPENDENCY. Some mutations will have some noisy text at the end, which is handled in pushUnique function.
         const chatMessageText = chatMessageElement.lastChild.lastChild.textContent
 
         const chatMessageBlock = {
@@ -407,7 +378,7 @@ function chatMessagesRecorder(mutationsList, observer) {
         }
 
         // Lot of mutations fire for each message, pick them only once
-        pushUniqueChatBlock(chatMessageBlock)
+        pushUnique(chatMessageBlock)
         overWriteChromeStorage(["chatMessages", false])
         console.log(chatMessages)
       }
@@ -433,7 +404,7 @@ function pushBufferToTranscript() {
 }
 
 // Pushes object to array only if it doesn't already exist. chatMessage is checked for substring since some trailing text(keep Pin message) is present from a button that allows to pin the message.
-function pushUniqueChatBlock(chatBlock) {
+function pushUnique(chatBlock) {
   const isExisting = chatMessages.some(item =>
     item.personName == chatBlock.personName &&
     item.timeStamp == chatBlock.timeStamp &&
@@ -478,26 +449,70 @@ function updateMeetingTitle() {
     const invalidFilenameRegex = /[^\w\-_.() ]/g
     meetingTitle = title.replace(invalidFilenameRegex, '_')
     overWriteChromeStorage(["meetingTitle"], false)
+    return meetingTitle
   } catch (error) {
     console.error(error)
+    overWriteChromeStorage(["meetingTitle"], false)
+    return meetingTitle
   }
 }
 
 
+checkExtensionStatus()
 
 
+// 2024-11-20 11:00:00
+{/* 
+<div class="a4cQT kV7vwc eO2Zfd" jscontroller="D1tHje" jsaction="bz0DVc:HWTqGc;TpIHXe:lUFH9b;E18dRb:lUFH9b;QBUr8:lUFH9b;v2nhid:YHhXNc;stc2ve:oh3Xke" style="">
+  <div class="ooO90d  P9KVBf jxX42 " jscontroller="cZ0noe" jsaction="rcuQ6b:KbbOyc;F41Sec:KbbOyc;OoZzdf:hDhshf;UTb4bb:GUAMQb" style="opacity: 0.2;">
+    <div jscontroller="TkvK2e" jsaction="JIbuQc:LDHNBf(gnzhTe)">
+      <span data-is-tooltip-wrapper="true">
+        <div class="VfPpkd-dgl2Hf-ppHlrf-sM5MNb" data-is-touch-wrapper="true">
+          <button class="VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf ksBjEc lKxP2d LQeN7 M6Iwrf" jscontroller="soHxf" jsaction="click:cOuCgd; mousedown:UX7yZ; mouseup:lbsD7e; mouseenter:tfO1Yc; mouseleave:JywGue; touchstart:p6p2H; touchmove:FwuNnf; touchend:yfqBxc; touchcancel:JMtRjd; focus:AHmuwe; blur:O22p3e; contextmenu:mg9Pef;mlnRJb:fLiPzd" data-idom-class="ksBjEc lKxP2d LQeN7 M6Iwrf" jsname="gnzhTe" aria-label="Korean Captions settings" data-tooltip-enabled="true" aria-describedby="tt-c1116">
+            <div class="VfPpkd-Jh9lGc"></div>
+            <div class="VfPpkd-J1Ukfc-LhBDec"></div>
+            <div class="VfPpkd-RLmnJb"></div>
+            <i class="google-material-icons notranslate VfPpkd-kBDsod" aria-hidden="true">settings</i><span jsname="V67aGc" class="VfPpkd-vQzf8d">Korean</span>
+          </button>
+        </div>
+        <div class="EY8ABd-OWXEXe-TAWMXe" role="tooltip" aria-hidden="true" id="tt-c1116">Captions settings</div>
+      </span>
+    </div>
+  </div>
+  <div>
+    <div jsname="dsyhDe" class="iOzk7 XDPoIe " style=""></div>
+    <div jsname="APQunf" class="iOzk7 XDPoIe" style="display: none;"></div>
+  </div>
+  <div jscontroller="mdnBv" jsaction="stc2ve:MO88xb;QBUr8:KNou4c"></div>
+</div>
+  
+  
+  
+  <div jsname="dsyhDe" class="iOzk7 XDPoIe " style="">
+   <div class="nMcdL bj4p3b" style="">
+      <div class="adE6rb M6cG9d">
+         <img alt="" class="Z6byG r6DyN" src="https://lh3.googleusercontent.com/a/ACg8ocL1OblT8Ejetq2MN-vMIgT7CxXzQ9s9p_fLJJqJBl9c_OmIno0=s80-p-k-no-mo" data-iml="236298.60000038147">
+         <div class="KcIKyf jxFHg">Jun Hong</div>
+      </div>
+      <div jsname="YSxPC" class="bYevke wY1pdd" style="height: 117px;">
+         <div jsname="tgaKEf" class="bh44bd VbkSUe" style="text-indent: 450.859px;">
+          <span>발생한 건지 cdp에서 발생한 </span><span>건지 요거를 좀 체크를 </span><span>했어야 되는데. </span><span>제가 이거는 허리 </span><span>돌아가면은 추가로 또 공유 </span><span>드려 볼게요. 여기서 좀 </span><span>풀로를 발견하면. </span><span>그때 리텐션은 앱 전체 </span><span>리텐션이 한 51%로 요것도 </span><span>우상. </span>
+         </div>
+      </div>
+   </div>
+  </div>
+*/}
 
 // CURRENT GOOGLE MEET TRANSCRIPT DOM
 
-{/* <div class="a4cQT" jsaction="bz0DVc:HWTqGc;TpIHXe:c0270d;v2nhid:YHhXNc;kDAVge:lUFH9b;QBUr8:lUFH9b;stc2ve:oh3Xke"
-  jscontroller="D1tHje" style="right: 16px; left: 16px; bottom: 80px;">
+{/* 
+<div class="a4cQT" jsaction="bz0DVc:HWTqGc;TpIHXe:c0270d;v2nhid:YHhXNc;kDAVge:lUFH9b;QBUr8:lUFH9b;stc2ve:oh3Xke" jscontroller="D1tHje" style="right: 16px; left: 16px; bottom: 80px;">
   <div>
     <div class="iOzk7" jsname="dsyhDe" style="">
       //PERSON 1
       <div class="TBMuR bj4p3b" style="">
-        <div><img alt="" class="KpxDtd r6DyN"
-            src="https://lh3.googleusercontent.com/a/some-url"
-            data-iml="453">
+        <div>
+          <img alt="" class="KpxDtd r6DyN" src="https://lh3.googleusercontent.com/a/some-url" data-iml="453">
           <div class="zs7s8d jxFHg">Person 1</div>
         </div>
         <div jsname="YSxPC" class="Mz6pEf wY1pdd" style="height: 28.4444px;">
@@ -509,9 +524,7 @@ function updateMeetingTitle() {
       
       // PERSON 2
       <div class="TBMuR bj4p3b" style="">
-        <div><img alt="" class="KpxDtd r6DyN"
-            src="https://lh3.googleusercontent.com/a/some-url"
-            data-iml="453">
+        <div><img alt="" class="KpxDtd r6DyN" src="https://lh3.googleusercontent.com/a/some-url" data-iml="453">
           <div class="zs7s8d jxFHg">Person 2</div>
         </div>
         <div jsname="YSxPC" class="Mz6pEf wY1pdd" style="height: 28.4444px;">
